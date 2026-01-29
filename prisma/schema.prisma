@@ -1,0 +1,38 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  // Primary Key
+  id          String @id @default(cuid())
+  // Supabase Key
+  supabaseUid String @unique @map("supabase_uid")
+
+  // User Info
+  email     String @unique
+  firstName String @map("first_name")
+  lastName  String @map("last_name")
+
+  // Roles
+  role       String  @default("staff")
+  department String?
+  isActive   Boolean @default(true) @map("is_active")
+
+  // Timestamps
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  lastLoginAt DateTime? @map("last_login_at")
+
+  // Relationships
+  /*
+     i will put relationships here later on
+   */
+
+   @@map("users")
+
+}
