@@ -7,6 +7,7 @@ datasource db {
   provider = "postgresql"
 }
 
+// User Model
 model User {
   // Primary Key
   id          String @id @default(cuid())
@@ -29,10 +30,43 @@ model User {
   lastLoginAt DateTime? @map("last_login_at")
 
   // Relationships
-  /*
-     i will put relationships here later on
-   */
+  managedWarehouses Warehouse[] @relation("manager")
 
-   @@map("users")
+  @@map("users")
+}
 
+// Warehouse Model
+model Warehouse {
+  // Primary Key
+  id String @id @default(cuid())
+
+  // Identification
+  code       String  @unique
+  name       String
+  location   String
+  address    String
+  city       String
+  country    String
+  postalCode String? @map("postal_code")
+
+  // status
+  capacity Int
+  isActive Boolean @default(true) @map("is_active")
+
+  // Manager Assignment
+  managerId String? @map("manager_id")
+
+  // Sustainability Metrics
+  carbonPerSqMeter Float?  @map("carbon_per_sq_meter")
+  energySource     String? @map("energy_source") // e.g., "Solar", "Grid", "Hybrid"
+  solarPercentage  Float?  @map("solar_percentage")
+
+  // Timestamps
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relationships
+  manager User? @relation("manager", fields: [managerId], references: [id])
+
+  @@map("warehouses")
 }
