@@ -9,12 +9,14 @@ const PORT = process.env.PORT;
 
 app.use(cors());
 app.use(express.json());
-
 app.get('/', (req, res) => {
   res.json({
     status: '✅ EcoCycle IMS Backend Running',
     timestamp: new Date().toISOString()
   });
 });
+
+
+
 
 export default app
