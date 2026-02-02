@@ -31,6 +31,8 @@ model User {
 
   // Relationships
   managedWarehouses Warehouse[] @relation("manager")
+  requestedTransfers Transfer[] @relation("RequestedBy")
+  stockCounts      StockCount[] @relation("CountedBy")
 
   @@map("users")
 }
@@ -66,7 +68,145 @@ model Warehouse {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   // Relationships
-  manager User? @relation("manager", fields: [managerId], references: [id])
+  manager     User?          @relation("manager", fields: [managerId], references: [id])
+  inventory   Inventory[]    
+  stockCounts StockCount[]   
+  transfers   Transfer[]     @relation("sourceWarehouse")  
+  received    Transfer[]     @relation("destWarehouse")  
 
   @@map("warehouses")
+}
+
+// Transfer
+model Transfer {
+  id                String   @id @default(cuid())
+  transferNumber    String   @unique @map("transfer_number")
+  sourceWarehouseId String   @map("source_warehouse_id")
+  destWarehouseId   String   @map("dest_warehouse_id")
+  
+  status            String   @default("PENDING") // PENDING, IN_TRANSIT, COMPLETED
+  requestedById     String   @map("requested_by_id")
+  
+  requestDate       DateTime @default(now()) @map("request_date")
+  completedAt       DateTime? @map("completed_at")
+  notes             String?
+  
+  // Relationships
+  sourceWarehouse Warehouse @relation("sourceWarehouse", fields: [sourceWarehouseId], references: [id])
+  destWarehouse   Warehouse @relation("destWarehouse", fields: [destWarehouseId], references: [id])
+  requestedBy     User      @relation("RequestedBy", fields: [requestedById], references: [id])
+  items           TransferItem[]
+  
+  @@map("transfers")
+}
+
+model TransferItem {
+  id         String  @id @default(cuid())
+  transferId String  @map("transfer_id")
+  productId  String  @map("product_id")
+  quantity   Int
+  
+  // Relationships
+  transfer Transfer @relation(fields: [transferId], references: [id])
+  product  Product  @relation(fields: [productId], references: [id])
+  
+  @@map("transfer_items")
+}
+
+// StockCount
+model StockCount {
+  id          String   @id @default(cuid())
+  warehouseId String   @map("warehouse_id")
+  inventoryId String?  @map("inventory_id")
+  
+  // Counting info
+  countedQty   Int
+  systemQty    Int      @map("system_qty")
+  variance     Int      // countedQty - systemQty
+  
+  countedById  String   @map("counted_by_id")
+  status       String   @default("PENDING") // PENDING, REVIEWED, ADJUSTED
+  
+  countDate    DateTime @default(now()) @map("count_date")
+  notes        String?
+  
+  // Relationships
+  warehouse   Warehouse @relation(fields: [warehouseId], references: [id])
+  inventory   Inventory? @relation(fields: [inventoryId], references: [id])
+  countedBy   User      @relation("CountedBy", fields: [countedById], references: [id])
+  
+  @@map("stock_counts")
+}
+
+// Product
+model Product {
+  id          String   @id @default(cuid())
+  sku         String   @unique
+  name        String
+  description String?
+  categoryId  String   @map("category_id")
+  unit        String   // "piece", "kg", "liter"
+  
+  // Pricing
+  costPrice   Float    @map("cost_price")
+  sellingPrice Float?  @map("selling_price")
+  
+  // Stock thresholds
+  minStockLevel Int     @default(10) @map("min_stock_level")
+  reorderPoint  Int     @default(20) @map("reorder_point")
+  
+  isActive    Boolean @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  
+  // Relationships
+  category      Category       @relation(fields: [categoryId], references: [id])
+  inventory     Inventory[]   
+  transferItems TransferItem[]
+  
+  @@map("products")
+}
+
+// Category
+model Category {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  parentId    String?  @map("parent_id") // For sub-categories
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  
+  // Relationships
+  parent   Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id])
+  children Category[] @relation("CategoryHierarchy")
+  products Product[]
+  
+  @@map("categories")
+}
+
+// Inventory
+model Inventory {
+  id          String   @id @default(cuid())
+  warehouseId String   @map("warehouse_id")
+  productId   String   @map("product_id")
+  
+  // Stock levels
+  quantity    Int      @default(0)
+  reserved    Int      @default(0) // For pending orders
+  available   Int      @default(0) // quantity - reserved
+  
+  // Location within warehouse
+  aisle       String?
+  shelf       String?
+  bin         String?
+  
+  lastUpdated DateTime  @default(now()) @map("last_updated")
+  
+  // Relationships
+  warehouse   Warehouse @relation(fields: [warehouseId], references: [id])
+  product     Product   @relation(fields: [productId], references: [id])
+  stockCounts StockCount[] // Added
+  
+  @@unique([warehouseId, productId])
+  @@map("inventory")
 }
