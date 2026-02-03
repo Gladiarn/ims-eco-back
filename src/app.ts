@@ -1,8 +1,9 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-
 dotenv.config();
+
+import warehouseRoutes from './routes/warehouseRoutes.js'
 
 const app = express();
 const PORT = process.env.PORT;
@@ -15,6 +16,8 @@ app.get('/', (req, res) => {
     timestamp: new Date().toISOString()
   });
 });
+
+app.use('/warehouses', warehouseRoutes);
 
 
 
