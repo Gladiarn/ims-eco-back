@@ -4,6 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "seed": "tsx prisma/seed.ts",
+    "seed:reset": "npx prisma migrate reset && npm run seed",
     "dev": "tsx src/server.ts",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
