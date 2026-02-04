@@ -4,15 +4,30 @@ import WarehouseService from "../services/warehouseServices";
 const warehouseService = new WarehouseService();
 
 export default class WarehouseController {
-  // GET all warehouses
-  getAllWarehouses = async (req: Request, res: Response) => {
-    try {
-      const warehouses = await warehouseService.getAllWarehousesService();
-      res.json({ success: true, data: warehouses });
-    } catch (error: any) {
-      res.status(500).json({ success: false, error: error.message });
-    }
-  };
+  // POST search warehouses with pagination
+  searchWarehouses = async (req: Request, res: Response) => {
+  try {
+    const {
+      search = "",
+      currentPage = 1,
+      limit = 10,
+      filters = {},
+      sort = { field: "createdAt", order: "desc" } 
+    } = req.body;
+
+    const result = await warehouseService.searchWarehousesService({
+      search: String(search),
+      currentPage: Number(currentPage),
+      limit: Number(limit),
+      filters,
+      sort 
+    });
+
+    res.json({ success: true, ...result });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
 
   // GET single warehouse by ID
   getWarehouseById = async (req: Request, res: Response) => {
@@ -90,10 +105,35 @@ export default class WarehouseController {
     }
   };
 
-  // GET warehouses with low stock
-  getWarehousesWithLowStock = async (req: Request, res: Response) => {
+  // POST search warehouses with low stock
+  searchWarehousesWithLowStock = async (req: Request, res: Response) => {
     try {
-      const warehouses = await warehouseService.getWarehousesWithLowStockService();
+      const {
+        search = "",
+        currentPage = 1,
+        limit = 10,
+        filters = {},
+        sort = { field: "name", order: "asc" }
+      } = req.body;
+
+      const result = await warehouseService.searchWarehousesWithLowStockService({
+        search: String(search),
+        currentPage: Number(currentPage),
+        limit: Number(limit),
+        filters,
+        sort
+      });
+
+      res.json({ success: true, ...result });
+    } catch (error: any) {
+      res.status(500).json({ success: false, error: error.message });
+    }
+  };
+
+  // GET active warehouses only (for dropdowns)
+  getActiveWarehouses = async (req: Request, res: Response) => {
+    try {
+      const warehouses = await warehouseService.getActiveWarehousesService();
       res.json({ success: true, data: warehouses });
     } catch (error: any) {
       res.status(500).json({ success: false, error: error.message });
