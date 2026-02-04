@@ -4,9 +4,14 @@ import WarehouseController from "../controllers/warehouseControllers";
 
 const warehouseController = new WarehouseController();
 
-// GET all warehouses
-router.get("/", warehouseController.getAllWarehouses);
+// I'm using POST for search operations allowing complex filters in the body
+// POST search warehouses
+router.post("/search", warehouseController.searchWarehouses);
 
+// POST search warehouses with low stock
+router.post("/reports/low-stock/search", warehouseController.searchWarehousesWithLowStock);
+
+// =================== SINGLE RECORD OPERATIONS ===================
 // GET single warehouse by ID
 router.get("/:id", warehouseController.getWarehouseById);
 
@@ -25,7 +30,8 @@ router.get("/:id/inventory-summary", warehouseController.getWarehouseInventorySu
 // GET warehouse statistics
 router.get("/:id/stats", warehouseController.getWarehouseStats);
 
-// GET warehouses with low stock
-router.get("/reports/low-stock", warehouseController.getWarehousesWithLowStock);
+// GET active warehouses (for dropdowns/selects)
+router.get("/active/list", warehouseController.getActiveWarehouses);
+
 
 export default router;
