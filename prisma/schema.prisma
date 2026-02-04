@@ -30,9 +30,18 @@ model User {
   lastLoginAt DateTime? @map("last_login_at")
 
   // Relationships
-  managedWarehouses Warehouse[] @relation("manager")
-  requestedTransfers Transfer[] @relation("RequestedBy")
-  stockCounts      StockCount[] @relation("CountedBy")
+  managedWarehouses  Warehouse[]       @relation("manager")
+  requestedTransfers Transfer[]        @relation("RequestedBy")
+  stockCounts        StockCount[]      @relation("CountedBy")
+  transactions       Transaction[]     @relation("PerformedBy")
+  createdOrders      Order[]           @relation("CreatedBy")
+  fulfilledOrders    Order[]           @relation("FulfilledBy")
+  createdPOs         PurchaseOrder[]   @relation("CreatedBy")
+  approvedPOs        PurchaseOrder[]   @relation("ApprovedBy")
+  deliveries         Delivery[]
+  recyclingRecords   RecyclingRecord[]
+  systemSettings     SystemSetting[]
+  auditLogs          AuditLog[]
 
   @@map("users")
 }
@@ -68,102 +77,132 @@ model Warehouse {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   // Relationships
-  manager     User?          @relation("manager", fields: [managerId], references: [id])
-  inventory   Inventory[]    
-  stockCounts StockCount[]   
-  transfers   Transfer[]     @relation("sourceWarehouse")  
-  received    Transfer[]     @relation("destWarehouse")  
+  manager        User?           @relation("manager", fields: [managerId], references: [id])
+  inventory      Inventory[]
+  stockCounts    StockCount[]
+  transfers      Transfer[]      @relation("sourceWarehouse")
+  received       Transfer[]      @relation("destWarehouse")
+  transactions   Transaction[]
+  orders         Order[]         @relation("FulfillmentWarehouse")
+  suppliers      Supplier[]      @relation("supplier_warehouses") // Added
+  purchaseOrders PurchaseOrder[] @relation("DeliveryWarehouse")
+
+  // Circular economy
+  recyclingRecords RecyclingRecord[] @relation("ProcessingWarehouse")
+  carbonTrackings  CarbonTracking[]
+  materialFlows    MaterialFlow[]
 
   @@map("warehouses")
 }
 
 // Transfer
 model Transfer {
-  id                String   @id @default(cuid())
-  transferNumber    String   @unique @map("transfer_number")
-  sourceWarehouseId String   @map("source_warehouse_id")
-  destWarehouseId   String   @map("dest_warehouse_id")
-  
-  status            String   @default("PENDING") // PENDING, IN_TRANSIT, COMPLETED
-  requestedById     String   @map("requested_by_id")
-  
-  requestDate       DateTime @default(now()) @map("request_date")
-  completedAt       DateTime? @map("completed_at")
-  notes             String?
-  
+  id                String @id @default(cuid())
+  transferNumber    String @unique @map("transfer_number")
+  sourceWarehouseId String @map("source_warehouse_id")
+  destWarehouseId   String @map("dest_warehouse_id")
+
+  status        String @default("PENDING") // PENDING, IN_TRANSIT, COMPLETED, CANCELLED
+  requestedById String @map("requested_by_id")
+
+  requestDate      DateTime  @default(now()) @map("request_date")
+  estimatedArrival DateTime? @map("estimated_arrival")
+  completedAt      DateTime? @map("completed_at")
+  notes            String?
+
+  // Carbon impact (for sustainability tracking)
+  estimatedCarbonKg Float? @default(0) @map("estimated_carbon_kg")
+
   // Relationships
-  sourceWarehouse Warehouse @relation("sourceWarehouse", fields: [sourceWarehouseId], references: [id])
-  destWarehouse   Warehouse @relation("destWarehouse", fields: [destWarehouseId], references: [id])
-  requestedBy     User      @relation("RequestedBy", fields: [requestedById], references: [id])
+  sourceWarehouse Warehouse      @relation("sourceWarehouse", fields: [sourceWarehouseId], references: [id])
+  destWarehouse   Warehouse      @relation("destWarehouse", fields: [destWarehouseId], references: [id])
+  requestedBy     User           @relation("RequestedBy", fields: [requestedById], references: [id])
   items           TransferItem[]
-  
+
   @@map("transfers")
 }
 
 model TransferItem {
-  id         String  @id @default(cuid())
-  transferId String  @map("transfer_id")
-  productId  String  @map("product_id")
+  id         String @id @default(cuid())
+  transferId String @map("transfer_id")
+  productId  String @map("product_id")
   quantity   Int
-  
+
   // Relationships
   transfer Transfer @relation(fields: [transferId], references: [id])
   product  Product  @relation(fields: [productId], references: [id])
-  
+
   @@map("transfer_items")
 }
 
 // StockCount
 model StockCount {
-  id          String   @id @default(cuid())
-  warehouseId String   @map("warehouse_id")
-  inventoryId String?  @map("inventory_id")
-  
+  id          String  @id @default(cuid())
+  warehouseId String  @map("warehouse_id")
+  inventoryId String? @map("inventory_id")
+
   // Counting info
-  countedQty   Int
-  systemQty    Int      @map("system_qty")
-  variance     Int      // countedQty - systemQty
-  
-  countedById  String   @map("counted_by_id")
-  status       String   @default("PENDING") // PENDING, REVIEWED, ADJUSTED
-  
-  countDate    DateTime @default(now()) @map("count_date")
-  notes        String?
-  
+  countedQty Int
+  systemQty  Int @map("system_qty")
+  variance   Int // countedQty - systemQty
+
+  countedById String @map("counted_by_id")
+  status      String @default("PENDING") // PENDING, REVIEWED, ADJUSTED
+
+  countDate  DateTime  @default(now()) @map("count_date")
+  reviewedAt DateTime? @map("reviewed_at")
+  adjustedAt DateTime? @map("adjusted_at")
+  notes      String?
+
   // Relationships
-  warehouse   Warehouse @relation(fields: [warehouseId], references: [id])
-  inventory   Inventory? @relation(fields: [inventoryId], references: [id])
-  countedBy   User      @relation("CountedBy", fields: [countedById], references: [id])
-  
+  warehouse Warehouse  @relation(fields: [warehouseId], references: [id])
+  inventory Inventory? @relation(fields: [inventoryId], references: [id])
+  countedBy User       @relation("CountedBy", fields: [countedById], references: [id])
+
   @@map("stock_counts")
 }
 
 // Product
 model Product {
-  id          String   @id @default(cuid())
-  sku         String   @unique
+  id          String  @id @default(cuid())
+  sku         String  @unique
   name        String
   description String?
-  categoryId  String   @map("category_id")
-  unit        String   // "piece", "kg", "liter"
-  
+  categoryId  String  @map("category_id")
+  unit        String // "piece", "kg", "liter"
+
+  // Product details
+  weight        Float? // in kg for carbon calculation
+  volume        Float? // in m³ for shipping calculation
+  isEcoFriendly Boolean @default(true) @map("is_eco_friendly")
+  materialType  String? @map("material_type") // "Recycled", "Organic", "Biodegradable"
+
   // Pricing
-  costPrice   Float    @map("cost_price")
-  sellingPrice Float?  @map("selling_price")
-  
+  costPrice    Float  @map("cost_price")
+  sellingPrice Float? @map("selling_price")
+
   // Stock thresholds
-  minStockLevel Int     @default(10) @map("min_stock_level")
-  reorderPoint  Int     @default(20) @map("reorder_point")
-  
-  isActive    Boolean @default(true) @map("is_active")
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
-  
+  minStockLevel Int @default(10) @map("min_stock_level")
+  reorderPoint  Int @default(20) @map("reorder_point")
+
+  // Carbon footprint (per unit)
+  carbonFootprintKg Float? @default(0) @map("carbon_footprint_kg")
+
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
   // Relationships
-  category      Category       @relation(fields: [categoryId], references: [id])
-  inventory     Inventory[]   
-  transferItems TransferItem[]
-  
+  category         Category            @relation(fields: [categoryId], references: [id])
+  inventory        Inventory[]
+  transferItems    TransferItem[]
+  orderItems       OrderItem[]
+  transactionItems TransactionItem[]
+  poItems          PurchaseOrderItem[]
+  supplierProducts SupplierProduct[] // Added
+  deliveryItems    DeliveryItem[]
+  recyclingRecords RecyclingRecord[]
+
   @@map("products")
 }
 
@@ -175,38 +214,453 @@ model Category {
   parentId    String?  @map("parent_id") // For sub-categories
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
-  
+
+  // Sustainability classification
+  isRecyclable Boolean @default(false) @map("is_recyclable")
+
   // Relationships
   parent   Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id])
   children Category[] @relation("CategoryHierarchy")
   products Product[]
-  
+
   @@map("categories")
 }
 
 // Inventory
 model Inventory {
-  id          String   @id @default(cuid())
-  warehouseId String   @map("warehouse_id")
-  productId   String   @map("product_id")
-  
+  id          String @id @default(cuid())
+  warehouseId String @map("warehouse_id")
+  productId   String @map("product_id")
+
   // Stock levels
-  quantity    Int      @default(0)
-  reserved    Int      @default(0) // For pending orders
-  available   Int      @default(0) // quantity - reserved
-  
+  quantity  Int @default(0)
+  reserved  Int @default(0) // For pending orders
+  available Int @default(0) // quantity - reserved
+
   // Location within warehouse
-  aisle       String?
-  shelf       String?
-  bin         String?
-  
-  lastUpdated DateTime  @default(now()) @map("last_updated")
-  
+  aisle String?
+  shelf String?
+  bin   String?
+
+  // Reordering
+  reorderStatus String @default("OK") @map("reorder_status") // OK, BELOW_MIN, BELOW_REORDER
+
+  lastUpdated DateTime @default(now()) @map("last_updated")
+
   // Relationships
-  warehouse   Warehouse @relation(fields: [warehouseId], references: [id])
-  product     Product   @relation(fields: [productId], references: [id])
-  stockCounts StockCount[] // Added
-  
+  warehouse   Warehouse    @relation(fields: [warehouseId], references: [id])
+  product     Product      @relation(fields: [productId], references: [id])
+  stockCounts StockCount[]
+
   @@unique([warehouseId, productId])
   @@map("inventory")
+}
+
+// ============ NEW MODELS FOR SIDEBAR FUNCTIONALITY ============
+
+// TRANSACTIONS (/transactions/*)
+model Transaction {
+  id                String @id @default(cuid())
+  transactionNumber String @unique @map("transaction_number")
+
+  // Transaction details
+  type          String // "STOCK_IN", "STOCK_OUT", "ADJUSTMENT", "RETURN", "WASTE", "RECYCLING"
+  warehouseId   String @map("warehouse_id")
+  performedById String @map("performed_by_id")
+
+  // Reference info
+  referenceId   String? @map("reference_id") // Links to Order, Transfer, etc.
+  referenceType String? @map("reference_type")
+
+  // Quantities
+  totalItems Int    @default(0) @map("total_items")
+  totalValue Float? @map("total_value")
+
+  // Carbon impact
+  carbonImpactKg Float? @default(0) @map("carbon_impact_kg")
+
+  notes           String?
+  transactionDate DateTime @default(now()) @map("transaction_date")
+
+  // Relationships
+  warehouse   Warehouse         @relation(fields: [warehouseId], references: [id])
+  performedBy User              @relation("PerformedBy", fields: [performedById], references: [id])
+  items       TransactionItem[]
+
+  @@map("transactions")
+}
+
+model TransactionItem {
+  id            String @id @default(cuid())
+  transactionId String @map("transaction_id")
+  productId     String @map("product_id")
+  quantity      Int
+  unitPrice     Float? @map("unit_price")
+  totalPrice    Float? @map("total_price")
+
+  // For adjustments
+  previousQty Int? @map("previous_qty")
+  newQty      Int? @map("new_qty")
+
+  // Relationships
+  transaction Transaction @relation(fields: [transactionId], references: [id])
+  product     Product     @relation(fields: [productId], references: [id])
+
+  @@map("transaction_items")
+}
+
+// ORDERS (/orders/*)
+model Order {
+  id          String @id @default(cuid())
+  orderNumber String @unique @map("order_number")
+
+  // Order info
+  customerName    String  @map("customer_name")
+  customerEmail   String? @map("customer_email")
+  customerPhone   String? @map("customer_phone")
+  shippingAddress String? @map("shipping_address")
+
+  // Fulfillment
+  fulfillmentWarehouseId String? @map("fulfillment_warehouse_id")
+  status                 String  @default("NEW") // NEW, PROCESSING, PICKING, PACKED, SHIPPED, DELIVERED, RETURNED, CANCELLED
+  priority               String  @default("NORMAL") // LOW, NORMAL, HIGH, URGENT
+
+  // Staff
+  createdById   String  @map("created_by_id")
+  fulfilledById String? @map("fulfilled_by_id")
+
+  // Dates
+  orderDate     DateTime  @default(now()) @map("order_date")
+  requiredDate  DateTime? @map("required_date")
+  shippedDate   DateTime? @map("shipped_date")
+  deliveredDate DateTime? @map("delivered_date")
+
+  // Financial
+  subtotal     Float @default(0)
+  tax          Float @default(0)
+  shippingCost Float @default(0) @map("shipping_cost")
+  totalAmount  Float @default(0) @map("total_amount")
+
+  // Sustainability
+  estimatedCarbonKg Float?  @default(0) @map("estimated_carbon_kg")
+  packagingType     String? @default("STANDARD") @map("packaging_type") // STANDARD, ECO_FRIENDLY
+
+  notes String?
+
+  // Relationships
+  fulfillmentWarehouse Warehouse?  @relation("FulfillmentWarehouse", fields: [fulfillmentWarehouseId], references: [id])
+  createdBy            User        @relation("CreatedBy", fields: [createdById], references: [id])
+  fulfilledBy          User?       @relation("FulfilledBy", fields: [fulfilledById], references: [id])
+  items                OrderItem[]
+
+  @@map("orders")
+}
+
+model OrderItem {
+  id         String @id @default(cuid())
+  orderId    String @map("order_id")
+  productId  String @map("product_id")
+  quantity   Int
+  unitPrice  Float  @map("unit_price")
+  totalPrice Float  @map("total_price")
+
+  // Fulfillment status
+  status String @default("PENDING") // PENDING, RESERVED, PICKED, PACKED
+
+  // Relationships
+  order   Order   @relation(fields: [orderId], references: [id])
+  product Product @relation(fields: [productId], references: [id])
+
+  @@map("order_items")
+}
+
+// SUPPLY CHAIN (/supply/*)
+model Supplier {
+  id          String  @id @default(cuid())
+  code        String  @unique
+  name        String
+  contactName String? @map("contact_name")
+  email       String?
+  phone       String?
+  address     String?
+  city        String?
+  country     String?
+
+  // Sustainability rating
+  sustainabilityRating Int?    @default(0) @map("sustainability_rating") // 1-5 stars
+  isCertifiedEco       Boolean @default(false) @map("is_certified_eco")
+  certifications       String? // JSON array of certifications
+
+  // Status
+  isActive     Boolean @default(true) @map("is_active")
+  paymentTerms String? @default("NET30") @map("payment_terms")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relationships
+  products       SupplierProduct[]
+  purchaseOrders PurchaseOrder[]
+  warehouses     Warehouse[]       @relation("supplier_warehouses")
+
+  @@map("suppliers")
+}
+
+model SupplierProduct {
+  id         String @id @default(cuid())
+  supplierId String @map("supplier_id")
+  productId  String @map("product_id")
+
+  // Supplier-specific details
+  supplierSku  String? @map("supplier_sku")
+  leadTimeDays Int     @default(7) @map("lead_time_days") // Days to deliver
+  unitCost     Float   @map("unit_cost")
+  minOrderQty  Int     @default(1) @map("min_order_qty")
+
+  // Relationships
+  supplier Supplier @relation(fields: [supplierId], references: [id])
+  product  Product  @relation(fields: [productId], references: [id])
+
+  @@unique([supplierId, productId])
+  @@map("supplier_products")
+}
+
+model PurchaseOrder {
+  id       String @id @default(cuid())
+  poNumber String @unique @map("po_number")
+
+  // Supplier & Delivery
+  supplierId          String @map("supplier_id")
+  deliveryWarehouseId String @map("delivery_warehouse_id")
+
+  // Status
+  status   String @default("DRAFT") // DRAFT, PENDING_APPROVAL, APPROVED, ORDERED, DELIVERED, CANCELLED
+  priority String @default("NORMAL")
+
+  // Staff
+  createdById  String  @map("created_by_id")
+  approvedById String? @map("approved_by_id")
+
+  // Dates
+  orderDate        DateTime  @default(now()) @map("order_date")
+  expectedDelivery DateTime? @map("expected_delivery")
+  deliveredDate    DateTime? @map("delivered_date")
+
+  // Financial
+  subtotal     Float @default(0)
+  tax          Float @default(0)
+  shippingCost Float @default(0) @map("shipping_cost")
+  totalAmount  Float @default(0) @map("total_amount")
+
+  // Sustainability
+  estimatedCarbonKg Float? @default(0) @map("estimated_carbon_kg")
+
+  notes String?
+
+  // Relationships
+  supplier          Supplier            @relation(fields: [supplierId], references: [id])
+  deliveryWarehouse Warehouse           @relation("DeliveryWarehouse", fields: [deliveryWarehouseId], references: [id])
+  createdBy         User                @relation("CreatedBy", fields: [createdById], references: [id])
+  approvedBy        User?               @relation("ApprovedBy", fields: [approvedById], references: [id])
+  items             PurchaseOrderItem[]
+  deliveries        Delivery[]
+
+  @@map("purchase_orders")
+}
+
+model PurchaseOrderItem {
+  id              String @id @default(cuid())
+  purchaseOrderId String @map("purchase_order_id")
+  productId       String @map("product_id")
+  quantity        Int
+  unitPrice       Float  @map("unit_price")
+  totalPrice      Float  @map("total_price")
+
+  // Received status
+  receivedQty Int @default(0) @map("received_qty")
+  pendingQty  Int @default(0) @map("pending_qty") // quantity - receivedQty
+
+  // Relationships
+  purchaseOrder PurchaseOrder @relation(fields: [purchaseOrderId], references: [id])
+  product       Product       @relation(fields: [productId], references: [id])
+
+  @@map("purchase_order_items")
+}
+
+model Delivery {
+  id             String @id @default(cuid())
+  deliveryNumber String @unique @map("delivery_number")
+
+  // Reference
+  purchaseOrderId String @map("purchase_order_id")
+
+  // Delivery info
+  carrier        String?
+  trackingNumber String? @map("tracking_number")
+  receivedById   String? @map("received_by_id")
+
+  // Status
+  status String @default("IN_TRANSIT") // IN_TRANSIT, PARTIALLY_RECEIVED, COMPLETED, DELAYED
+
+  // Dates
+  shippedDate  DateTime? @map("shipped_date")
+  receivedDate DateTime? @map("received_date")
+
+  // Carbon
+  deliveryCarbonKg Float? @default(0) @map("delivery_carbon_kg")
+
+  notes String?
+
+  // Relationships
+  purchaseOrder PurchaseOrder  @relation(fields: [purchaseOrderId], references: [id])
+  receivedBy    User?          @relation(fields: [receivedById], references: [id])
+  items         DeliveryItem[]
+
+  @@map("deliveries")
+}
+
+model DeliveryItem {
+  id         String @id @default(cuid())
+  deliveryId String @map("delivery_id")
+  productId  String @map("product_id")
+  quantity   Int
+
+  // Received status
+  receivedQty Int    @default(0) @map("received_qty")
+  condition   String @default("GOOD") // GOOD, DAMAGED, EXPIRED
+
+  // Relationships
+  delivery Delivery @relation(fields: [deliveryId], references: [id])
+  product  Product  @relation(fields: [productId], references: [id])
+
+  @@map("delivery_items")
+}
+
+// SUSTAINABILITY (/sustainability/*)
+model CarbonTracking {
+  id String @id @default(cuid())
+
+  // Scope
+  scope    String // SCOPE_1 (direct), SCOPE_2 (indirect energy), SCOPE_3 (supply chain)
+  category String // TRANSPORT, ENERGY, WASTE, MATERIALS
+
+  // Measurement
+  sourceId   String? @map("source_id") // warehouse_id, transfer_id, etc.
+  sourceType String? @map("source_type") // WAREHOUSE, TRANSFER, PRODUCT, etc.
+
+  // Values
+  carbonKg          Float  @default(0) @map("carbon_kg")
+  measurementPeriod String @map("measurement_period") // "2024-01", "2024-Q1", "2024"
+
+  // Calculation method
+  calculationMethod String @default("ESTIMATED") @map("calculation_method") // ESTIMATED, MEASURED, CALCULATED
+
+  recordedAt DateTime @default(now()) @map("recorded_at")
+  notes      String?
+
+  // Relationships
+  warehouse Warehouse? @relation(fields: [sourceId], references: [id])
+
+  @@map("carbon_tracking")
+}
+
+model RecyclingRecord {
+  id String @id @default(cuid())
+
+  // Processing
+  processingWarehouseId String @map("processing_warehouse_id")
+  productId             String @map("product_id")
+
+  // Quantities
+  quantity Int
+  weightKg Float? @map("weight_kg")
+
+  // Type & Method
+  recyclingType String @map("recycling_type") // PLASTIC, PAPER, METAL, ELECTRONIC, ORGANIC
+  method        String // "MECHANICAL", "CHEMICAL", "COMPOSTING"
+
+  // Impact
+  carbonSavedKg      Float? @default(0) @map("carbon_saved_kg")
+  landfillDivertedKg Float? @default(0) @map("landfill_diverted_kg")
+
+  processedById String   @map("processed_by_id")
+  processedDate DateTime @default(now()) @map("processed_date")
+
+  // Relationships
+  processingWarehouse Warehouse @relation("ProcessingWarehouse", fields: [processingWarehouseId], references: [id])
+  product             Product   @relation(fields: [productId], references: [id])
+  processedBy         User      @relation(fields: [processedById], references: [id])
+
+  @@map("recycling_records")
+}
+
+model MaterialFlow {
+  id String @id @default(cuid())
+
+  // Material info
+  materialType String @map("material_type")
+  category     String // INPUT, OUTPUT, WASTE, RECYCLED
+
+  // Quantities
+  quantity Int
+  unit     String // "kg", "tons", "units"
+
+  // Source/Destination
+  sourceId   String? @map("source_id")
+  sourceType String? @map("source_type")
+  destId     String? @map("dest_id")
+  destType   String? @map("dest_type")
+
+  // Timestamp
+  flowDate   DateTime @default(now()) @map("flow_date")
+  recordedAt DateTime @default(now()) @map("recorded_at")
+
+  // Relationships
+  warehouse Warehouse? @relation(fields: [sourceId], references: [id])
+
+  @@map("material_flow")
+}
+
+// SETTINGS & ANALYTICS
+model SystemSetting {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  value       String
+  category    String   @default("GENERAL")
+  description String?
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  updatedById String?  @map("updated_by_id")
+
+  // Relationships
+  updatedBy User? @relation(fields: [updatedById], references: [id])
+
+  @@map("system_settings")
+}
+
+model AuditLog {
+  id String @id @default(cuid())
+
+  // Actor
+  userId    String? @map("user_id")
+  userEmail String? @map("user_email")
+
+  // Action
+  action     String // CREATE, UPDATE, DELETE, LOGIN, LOGOUT
+  entityType String  @map("entity_type") // PRODUCT, ORDER, etc.
+  entityId   String? @map("entity_id")
+
+  // Changes
+  oldValues Json? @map("old_values")
+  newValues Json? @map("new_values")
+
+  // Context
+  ipAddress String? @map("ip_address")
+  userAgent String? @map("user_agent")
+
+  timestamp DateTime @default(now())
+
+  // Relationships
+  user User? @relation(fields: [userId], references: [id])
+
+  @@map("audit_logs")
 }
