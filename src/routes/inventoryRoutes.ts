@@ -5,7 +5,7 @@ const inventoryController = new InventoryController();
 
 // I'm using POST for search operations allowing complex filters in the body
 router.post("/search", inventoryController.searchInventory);
-
+router.post("/low-stock", inventoryController.searchLowStockInventory);
 
 
 
