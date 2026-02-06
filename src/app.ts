@@ -6,6 +6,7 @@ dotenv.config();
 import warehouseRoutes from './routes/warehouseRoutes.js'
 import inventoryRoutes from './routes/inventoryRoutes.js'
 import productRoutes from './routes/productRoutes.js'
+import categoryRoutes from './routes/categoryRoutes.js'
 
 const app = express();
 const PORT = process.env.PORT;
@@ -22,7 +23,7 @@ app.get('/', (req, res) => {
 app.use('/warehouses', warehouseRoutes);
 app.use('/inventory', inventoryRoutes);
 app.use('/products', productRoutes);
-
+app.use('/category', categoryRoutes);
 
 
 export default app
