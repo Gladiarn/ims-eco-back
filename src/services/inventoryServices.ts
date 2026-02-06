@@ -23,7 +23,11 @@ interface SearchResult {
 export default class InventoryServices {
   // MAIN SEARCH METHOD with pagination
   searchInventoryService = async (params: SearchParams): Promise<SearchResult> => {
-    const { search, currentPage, limit, filters, sort } = params;
+    const { search, currentPage, limit, filters } = params;
+    
+    // FIX: Provide default sort if not provided
+    const sort = params.sort || { field: "lastUpdated", order: "desc" };
+    
     const skip = (currentPage - 1) * limit;
 
     // Build WHERE clause
@@ -98,14 +102,19 @@ export default class InventoryServices {
       where.reorderStatus = filters.reorderStatus;
     }
 
-    // Build ORDER BY
+    // Build ORDER BY - FIXED: Added null check
     const orderBy: any = {};
-    if (sort.field.includes(".")) {
-      // Nested field like "product.name"
-      const [relation, field] = sort.field.split(".");
-      orderBy[relation] = { [field]: sort.order };
+    if (sort && sort.field) {
+      if (sort.field.includes(".")) {
+        // Nested field like "product.name"
+        const [relation, field] = sort.field.split(".");
+        orderBy[relation] = { [field]: sort.order };
+      } else {
+        orderBy[sort.field] = sort.order;
+      }
     } else {
-      orderBy[sort.field] = sort.order;
+      // Default ordering
+      orderBy.lastUpdated = "desc";
     }
 
     // Get data and count

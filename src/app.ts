@@ -4,6 +4,8 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 import warehouseRoutes from './routes/warehouseRoutes.js'
+import inventoryRoutes from './routes/inventoryRoutes.js'
+import productRoutes from './routes/productRoutes.js'
 
 const app = express();
 const PORT = process.env.PORT;
@@ -18,7 +20,8 @@ app.get('/', (req, res) => {
 });
 
 app.use('/warehouses', warehouseRoutes);
-
+app.use('/inventory', inventoryRoutes);
+app.use('/products', productRoutes);
 
 
 
