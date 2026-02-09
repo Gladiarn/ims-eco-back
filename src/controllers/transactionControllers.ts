@@ -101,7 +101,7 @@ export default class TransactionController {
         sort = { field: "transactionDate", order: "desc" }
       } = req.body;
 
-      const result = await transactionService.getTransactionsByWarehouseService(warehouseId, {
+      const result = await transactionService.searchTransactionsByWarehouseService(warehouseId, {
         search: String(search),
         currentPage: Number(currentPage),
         limit: Number(limit),

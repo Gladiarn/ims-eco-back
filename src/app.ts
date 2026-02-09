@@ -7,6 +7,8 @@ import warehouseRoutes from './routes/warehouseRoutes.js'
 import inventoryRoutes from './routes/inventoryRoutes.js'
 import productRoutes from './routes/productRoutes.js'
 import categoryRoutes from './routes/categoryRoutes.js'
+import transactionRoutes from './routes/transactionRoutes.js'
+import orderRoutes from './routes/orderRoutes.js'
 
 const app = express();
 const PORT = process.env.PORT;
@@ -24,6 +26,7 @@ app.use('/warehouses', warehouseRoutes);
 app.use('/inventory', inventoryRoutes);
 app.use('/products', productRoutes);
 app.use('/category', categoryRoutes);
-
+app.use('/transactions', transactionRoutes);
+app.use('/orders', orderRoutes);
 
 export default app
