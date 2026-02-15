@@ -23,12 +23,19 @@ app.get('/', (req, res) => {
   });
 });
 
+// warehouse starting route
 app.use('/warehouses', warehouseRoutes);
+// inventory starting route
 app.use('/inventory', inventoryRoutes);
+// products starting route
 app.use('/products', productRoutes);
+// category starting route
 app.use('/category', categoryRoutes);
+// transactions starting route
 app.use('/transactions', transactionRoutes);
+// orders starting route
 app.use('/orders',orderRoutes);
-app.use('/transfers', transferRoutes)
+// transfers starting route
+app.use('/transfers', transferRoutes);
 
 export default app
