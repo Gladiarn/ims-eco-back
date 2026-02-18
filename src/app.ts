@@ -10,6 +10,7 @@ import categoryRoutes from './routes/categoryRoutes.js'
 import transactionRoutes from './routes/transactionRoutes.js'
 import orderRoutes from './routes/orderRoutes.js'
 import transferRoutes from './routes/transferRoutes.js'
+import sustainabilityRoutes from './routes/sustainabilityRoutes.js'
 
 const app = express();
 const PORT = process.env.PORT;
@@ -38,4 +39,5 @@ app.use('/orders',orderRoutes);
 // transfers starting route
 app.use('/transfers', transferRoutes);
 
+app.use('/sustainability', sustainabilityRoutes);
 export default app
