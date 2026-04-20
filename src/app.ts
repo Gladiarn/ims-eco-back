@@ -14,6 +14,7 @@ import sustainabilityRoutes from './routes/sustainabilityRoutes.js'
 import userRoutes from './routes/userRoutes.js'
 import settingRoutes from './routes/settingRoutes.js'
 import auditRoutes from './routes/auditRoutes.js'
+import analyticsRoutes from './routes/analyticsRoutes.js'
 
 const app = express();
 const PORT = process.env.PORT;
@@ -52,4 +53,7 @@ app.use('/settings', settingRoutes);
 
 // audit logs starting route
 app.use('/audit', auditRoutes);
+
+// analytics starting route
+app.use('/analytics', analyticsRoutes);
 export default app
