@@ -1,5 +1,5 @@
 import { prisma } from "../lib/db";
-import { Prisma } from "../../../generated/prisma";
+import { Prisma } from "../../generated/prisma";
 
 export class AuditService {
   /**
