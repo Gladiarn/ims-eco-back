@@ -21,7 +21,7 @@ export default class UserController {
    */
   async getUserById(req: Request, res: Response) {
     try {
-      const user = await userService.getUserById(req.params.id);
+      const user = await userService.getUserById(req.params.id as string);
       if (!user) {
         return res.status(404).json({ success: false, message: "User not found" });
       }
@@ -48,7 +48,7 @@ export default class UserController {
    */
   async updateUser(req: Request, res: Response) {
     try {
-      const user = await userService.updateUser(req.params.id, req.body);
+      const user = await userService.updateUser(req.params.id as string, req.body);
       res.json({ success: true, data: user });
     } catch (error: any) {
       res.status(500).json({ success: false, message: error.message });
@@ -60,7 +60,7 @@ export default class UserController {
    */
   async deleteUser(req: Request, res: Response) {
     try {
-      await userService.deleteUser(req.params.id);
+      await userService.deleteUser(req.params.id as string);
       res.json({ success: true, message: "User deactivated successfully" });
     } catch (error: any) {
       res.status(500).json({ success: false, message: error.message });

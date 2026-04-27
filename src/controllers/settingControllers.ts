@@ -21,7 +21,7 @@ export default class SettingController {
    */
   async getSettingByKey(req: Request, res: Response) {
     try {
-      const setting = await settingService.getSettingByKey(req.params.key);
+      const setting = await settingService.getSettingByKey(req.params.key as string);
       if (!setting) {
         return res.status(404).json({ success: false, message: "Setting not found" });
       }

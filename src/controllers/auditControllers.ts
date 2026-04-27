@@ -21,7 +21,7 @@ export default class AuditController {
    */
   async getAuditLogById(req: Request, res: Response) {
     try {
-      const log = await auditService.getAuditLogById(req.params.id);
+      const log = await auditService.getAuditLogById(req.params.id as string);
       if (!log) {
         return res.status(404).json({ success: false, message: "Audit log not found" });
       }
@@ -37,7 +37,7 @@ export default class AuditController {
   async getLogsByEntity(req: Request, res: Response) {
     try {
       const { entityType, entityId } = req.params;
-      const logs = await auditService.getLogsByEntity(entityType, entityId);
+      const logs = await auditService.getLogsByEntity(req.params.entityType as string, req.params.entityId as string);
       res.json({ success: true, data: logs });
     } catch (error: any) {
       res.status(500).json({ success: false, message: error.message });
